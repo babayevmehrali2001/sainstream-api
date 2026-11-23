@@ -37,7 +37,6 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                     Claims claims = jwtService.parseAccessToken(header.substring(7));
                     Long userId = ((Number) claims.get("userId")).longValue();
 
-                    // istifadəçini "giriş etmiş" kimi qeyd et
                     UsernamePasswordAuthenticationToken auth =
                             new UsernamePasswordAuthenticationToken(userId, null, List.of());
                     SecurityContextHolder.getContext().setAuthentication(auth);

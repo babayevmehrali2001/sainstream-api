@@ -43,7 +43,6 @@ public class JwtService {
                 .compact();
     }
 
-    // token düzgündürsə, içindəki məlumatı qaytarır; deyilsə exception atır
     public Claims parseAccessToken(String token) {
         return Jwts.parser()
                 .verifyWith(key)

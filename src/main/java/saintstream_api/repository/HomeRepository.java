@@ -1,41 +1,28 @@
 package saintstream_api.repository;
 
-import lombok.RequiredArgsConstructor;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.stereotype.Repository;
-import saintstream_api.dto.*;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import saintstream_api.model.Content;
 
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.util.ArrayList;
+import java.math.BigDecimal;
 import java.util.List;
 
-@Repository
-@RequiredArgsConstructor
-public class HomeRepository {
+public interface HomeRepository extends JpaRepository<Content, Long> {
 
-    private final JdbcTemplate jdbcTemplate;
+    @Query(value = """
+            SELECT id, name, logo_url AS logoUrl
+            FROM platforms
+            WHERE is_active = TRUE
+            ORDER BY order_number
+            """, nativeQuery = true)
+    List<PlatformRow> findActivePlatforms();
 
-    public List<PlatformResponse> findActivePlatforms() {
-        String sql = """
-                SELECT id, name, logo_url
-                FROM platforms
-                WHERE is_active = TRUE
-                ORDER BY order_number
-                """;
-
-        return jdbcTemplate.query(sql, (rs, rowNum) -> new PlatformResponse(
-                rs.getLong("id"),
-                rs.getString("name"),
-                rs.getString("logo_url")
-        ));
-    }
-
-
-    public List<HeroResponse> findHero() {
-        String sql = """
-            SELECT c.id, c.title, c.type, c.release_year, c.duration_minutes, c.season_count,
-                   c.description, c.backdrop_url, c.trailer_url,
+    @Query(value = """
+            SELECT c.id AS id, c.title AS title, c.type AS type,
+                   c.release_year AS releaseYear, c.duration_minutes AS durationMinutes,
+                   c.season_count AS seasonCount, c.description AS description,
+                   c.backdrop_url AS backdropUrl, c.trailer_url AS trailerUrl,
                    GROUP_CONCAT(g.name ORDER BY g.name SEPARATOR ',') AS genres
             FROM collection_items ci
             JOIN collections col        ON col.id = ci.collection_id
@@ -46,33 +33,14 @@ public class HomeRepository {
             GROUP BY ci.id, c.id
             ORDER BY ci.order_number
             LIMIT 5
-            """;
+            """, nativeQuery = true)
+    List<HeroRow> findHero();
 
-        return jdbcTemplate.query(sql, (rs, rowNum) -> new HeroResponse(
-                rs.getLong("id"),
-                rs.getString("title"),
-                rs.getString("type"),
-                rs.getObject("release_year", Integer.class),
-                rs.getObject("duration_minutes", Integer.class),
-                rs.getObject("season_count", Integer.class),
-                toList(rs.getString("genres")),
-                rs.getString("description"),
-                rs.getString("backdrop_url"),
-                rs.getString("trailer_url")
-        ));
-    }
-
-    private List<String> toList(String genres) {
-        if (genres == null) {
-            return List.of();
-        }
-        return List.of(genres.split(","));
-    }
-
-    public List<FeaturedResponse> findFeatured() {
-        String sql = """
-            SELECT c.id, c.title, ci.label AS tagline, c.rating, c.duration_minutes, c.release_year,
-                   c.description, c.poster_url, c.backdrop_url,
+    @Query(value = """
+            SELECT c.id AS id, c.title AS title, ci.label AS tagline, c.rating AS rating,
+                   c.duration_minutes AS durationMinutes, c.release_year AS releaseYear,
+                   c.description AS description, c.poster_url AS posterUrl,
+                   c.backdrop_url AS backdropUrl,
                    GROUP_CONCAT(g.name ORDER BY g.name SEPARATOR ',') AS genres
             FROM collection_items ci
             JOIN collections col        ON col.id = ci.collection_id
@@ -82,57 +50,69 @@ public class HomeRepository {
             WHERE col.slug = 'featured'
             GROUP BY ci.id, c.id
             ORDER BY ci.order_number
-            """;
-
-        return jdbcTemplate.query(sql, (rs, rowNum) -> new FeaturedResponse(
-                rs.getLong("id"),
-                rs.getString("title"),
-                rs.getString("tagline"),
-                rs.getBigDecimal("rating"),
-                rs.getObject("duration_minutes", Integer.class),
-                rs.getObject("release_year", Integer.class),
-                toList(rs.getString("genres")),
-                rs.getString("description"),
-                rs.getString("poster_url"),
-                rs.getString("backdrop_url")
-        ));
-    }
+            """, nativeQuery = true)
+    List<FeaturedRow> findFeatured();
 
 
 
-
-    // ==================== SECTIONS ====================
-
-    // contents cədvəlindən: just-release, movies, series, korean-series
-    public List<SectionItemResponse> findSectionFromContents(String where, String orderBy,
-                                                             List<Object> params, int limit) {
-        String sql = """
-            SELECT c.id, c.title, c.poster_url, c.type, c.rating, c.age_rating,
-                   c.release_year, c.season_count,
+    @Query(value = """
+            SELECT c.id AS id, c.title AS title, c.poster_url AS posterUrl, c.type AS type,
+                   c.rating AS rating, c.age_rating AS ageRating,
+                   c.release_year AS releaseYear, c.season_count AS seasonCount,
                    GROUP_CONCAT(g.name ORDER BY g.name SEPARATOR ',') AS genres
             FROM contents c
             LEFT JOIN content_genres cg ON cg.content_id = c.id
             LEFT JOIN genres g          ON g.id = cg.genre_id
-            WHERE %s
             GROUP BY c.id
-            ORDER BY %s
-            LIMIT ?
-            """.formatted(where, orderBy);
+            ORDER BY c.release_date DESC, c.id
+            LIMIT :limit
+            """, nativeQuery = true)
+    List<SectionRow> findLatest(@Param("limit") int limit);
 
-        List<Object> allParams = new ArrayList<>(params);
-        allParams.add(limit);
 
-        return jdbcTemplate.query(sql, (rs, rowNum) -> mapBase(rs), allParams.toArray());
-    }
+    @Query(value = """
+            SELECT c.id AS id, c.title AS title, c.poster_url AS posterUrl, c.type AS type,
+                   c.rating AS rating, c.age_rating AS ageRating,
+                   c.release_year AS releaseYear, c.season_count AS seasonCount,
+                   GROUP_CONCAT(g.name ORDER BY g.name SEPARATOR ',') AS genres
+            FROM contents c
+            LEFT JOIN content_genres cg ON cg.content_id = c.id
+            LEFT JOIN genres g          ON g.id = cg.genre_id
+            WHERE c.type = :type
+            GROUP BY c.id
+            ORDER BY c.rating DESC, c.id
+            LIMIT :limit
+            """, nativeQuery = true)
+    List<SectionRow> findTopRatedByType(@Param("type") String type,
+                                        @Param("limit") int limit);
 
-    // kolleksiyadan: popular-week, awards, fast, live
-    public List<SectionItemResponse> findSectionFromCollection(String slug, int limit) {
-        String sql = """
-            SELECT c.id, c.title, c.poster_url, c.type, c.rating, c.age_rating,
-                   c.release_year, c.season_count,
-                   c.description, c.backdrop_url, c.duration_minutes,
-                   ci.order_number, ci.label,
-                   p.name AS platform_name, p.logo_url AS platform_logo_url,
+
+    @Query(value = """
+            SELECT c.id AS id, c.title AS title, c.poster_url AS posterUrl, c.type AS type,
+                   c.rating AS rating, c.age_rating AS ageRating,
+                   c.release_year AS releaseYear, c.season_count AS seasonCount,
+                   GROUP_CONCAT(g.name ORDER BY g.name SEPARATOR ',') AS genres
+            FROM contents c
+            LEFT JOIN content_genres cg ON cg.content_id = c.id
+            LEFT JOIN genres g          ON g.id = cg.genre_id
+            WHERE c.type = :type AND c.origin_country = :country
+            GROUP BY c.id
+            ORDER BY c.rating DESC, c.id
+            LIMIT :limit
+            """, nativeQuery = true)
+    List<SectionRow> findTopRatedByTypeAndCountry(@Param("type") String type,
+                                                  @Param("country") String country,
+                                                  @Param("limit") int limit);
+
+
+    @Query(value = """
+            SELECT c.id AS id, c.title AS title, c.poster_url AS posterUrl, c.type AS type,
+                   c.rating AS rating, c.age_rating AS ageRating,
+                   c.release_year AS releaseYear, c.season_count AS seasonCount,
+                   c.description AS description, c.backdrop_url AS backdropUrl,
+                   c.duration_minutes AS durationMinutes,
+                   ci.order_number AS orderNumber, ci.label AS label,
+                   p.name AS platformName, p.logo_url AS platformLogoUrl,
                    GROUP_CONCAT(g.name ORDER BY g.name SEPARATOR ',') AS genres
             FROM collection_items ci
             JOIN collections col        ON col.id = ci.collection_id
@@ -140,48 +120,69 @@ public class HomeRepository {
             LEFT JOIN platforms p       ON p.id   = c.platform_id
             LEFT JOIN content_genres cg ON cg.content_id = c.id
             LEFT JOIN genres g          ON g.id   = cg.genre_id
-            WHERE col.slug = ?
+            WHERE col.slug = :slug
             GROUP BY ci.id, c.id, p.id
             ORDER BY ci.order_number
-            LIMIT ?
-            """;
+            LIMIT :limit
+            """, nativeQuery = true)
+    List<CollectionSectionRow> findSectionFromCollection(@Param("slug") String slug,
+                                                         @Param("limit") int limit);
 
-        return jdbcTemplate.query(sql, (rs, rowNum) -> {
-            SectionItemResponse item = mapBase(rs);
+    // ==================== PROJECTIONS ====================
+    // hər getter SQL-dəki bir AS ləqəbinə uyğundur (logoUrl → getLogoUrl)
 
-            if (slug.equals("popular-week")) {
-                item.setRank(rs.getInt("order_number"));
-            }
-
-            if (slug.equals("awards")) {
-                item.setLabel(rs.getString("label"));
-                item.setDescription(rs.getString("description"));
-                item.setBackdropUrl(rs.getString("backdrop_url"));
-                item.setDurationMinutes(rs.getObject("duration_minutes", Integer.class));
-                if (rs.getString("platform_name") != null) {
-                    item.setPlatform(new PlatformInfo(
-                            rs.getString("platform_name"),
-                            rs.getString("platform_logo_url")));
-                }
-            }
-            return item;
-        }, slug, limit);
+    interface PlatformRow {
+        Long getId();
+        String getName();
+        String getLogoUrl();
     }
 
-    // bütün bölmələrdə olan ümumi sahələr
-    private SectionItemResponse mapBase(ResultSet rs) throws SQLException {
-        SectionItemResponse item = new SectionItemResponse();
-        item.setId(rs.getLong("id"));
-        item.setTitle(rs.getString("title"));
-        item.setPosterUrl(rs.getString("poster_url"));
-        item.setType(rs.getString("type"));
-        item.setRating(rs.getBigDecimal("rating"));
-        item.setAgeRating(rs.getString("age_rating"));
-        item.setReleaseYear(rs.getObject("release_year", Integer.class));
-        item.setSeasonCount(rs.getObject("season_count", Integer.class));
-        item.setGenres(toList(rs.getString("genres")));
-        return item;
+    interface HeroRow {
+        Long getId();
+        String getTitle();
+        String getType();
+        Integer getReleaseYear();
+        Integer getDurationMinutes();
+        Integer getSeasonCount();
+        String getDescription();
+        String getBackdropUrl();
+        String getTrailerUrl();
+        String getGenres();
     }
 
+    interface FeaturedRow {
+        Long getId();
+        String getTitle();
+        String getTagline();
+        BigDecimal getRating();
+        Integer getDurationMinutes();
+        Integer getReleaseYear();
+        String getDescription();
+        String getPosterUrl();
+        String getBackdropUrl();
+        String getGenres();
+    }
 
+    interface SectionRow {
+        Long getId();
+        String getTitle();
+        String getPosterUrl();
+        String getType();
+        BigDecimal getRating();
+        String getAgeRating();
+        Integer getReleaseYear();
+        Integer getSeasonCount();
+        String getGenres();
+    }
+
+    // SectionRow-un bütün sahələri + kolleksiyaya aid əlavələr
+    interface CollectionSectionRow extends SectionRow {
+        Integer getOrderNumber();
+        String getLabel();
+        String getDescription();
+        String getBackdropUrl();
+        Integer getDurationMinutes();
+        String getPlatformName();
+        String getPlatformLogoUrl();
+    }
 }

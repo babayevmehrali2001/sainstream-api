@@ -18,7 +18,6 @@ public interface WatchlistItemRepository extends JpaRepository<WatchlistItem, Lo
     @Query(value = "SELECT COUNT(*) FROM contents WHERE id = :contentId", nativeQuery = true)
     long countContent(@Param("contentId") Long contentId);
 
-    // istifadəçinin siyahısı: film məlumatı + janrlar bir sorğuda (N+1 yoxdur)
     @Query(value = """
             SELECT c.id          AS id,
                    c.title       AS title,
@@ -38,7 +37,6 @@ public interface WatchlistItemRepository extends JpaRepository<WatchlistItem, Lo
             """, nativeQuery = true)
     List<WatchlistRow> findMyList(@Param("userId") Long userId);
 
-    // native sorğunun nəticəsi üçün projection: hər getter bir sütun ləqəbinə uyğundur
     interface WatchlistRow {
         Long getId();
         String getTitle();

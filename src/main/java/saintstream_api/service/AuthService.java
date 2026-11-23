@@ -93,7 +93,6 @@ public class AuthService {
             throw new ApiException(HttpStatus.FORBIDDEN, "Account is deactivated");
         }
 
-        // köhnə refresh token-ləri sil, yenisini yarat
         refreshTokenRepository.deleteByUserId(user.getId());
         return createTokens(user);
     }
