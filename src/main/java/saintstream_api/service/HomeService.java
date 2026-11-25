@@ -64,7 +64,7 @@ public class HomeService {
             case "korean-series" -> toItems(
                     homeRepository.findTopRatedByTypeAndCountry("series", "KR", finalLimit));
             default -> homeRepository.findSectionFromCollection(section, finalLimit).stream()
-                    .map(row -> toCollectionItem(row, section))   // popular-week, awards, fast, live
+                    .map(row -> toCollectionItem(row, section))
                     .toList();
         };
 

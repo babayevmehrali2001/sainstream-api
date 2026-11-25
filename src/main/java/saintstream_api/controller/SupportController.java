@@ -18,7 +18,6 @@ public class SupportController {
 
     private final SupportService supportService;
 
-    // POST /api/support/contact → 201
     @PostMapping("/contact")
     @ResponseStatus(HttpStatus.CREATED)
     public ApiResponse<ContactResponse> sendContactMessage(
@@ -27,7 +26,6 @@ public class SupportController {
                 supportService.sendContactMessage(request));
     }
 
-    // GET /api/support/faqs → 200
     @GetMapping("/faqs")
     public ApiResponse<List<FaqResponse>> getFaqs() {
         return new ApiResponse<>(true, "OK", supportService.getFaqs());
