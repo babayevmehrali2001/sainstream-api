@@ -8,7 +8,7 @@ spring:
     username: ${DB_USER}
     password: ${DB_PASSWORD}
   jackson:
-    property-naming-strategy: SNAKE_CASE
+    property-naming-strategy: SNAKE_CASE // jsonda newFilm new_film edir
   jpa:
     hibernate:
       ddl-auto: none
